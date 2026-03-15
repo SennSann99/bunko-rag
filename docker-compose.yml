@@ -1,0 +1,60 @@
+services:
+  # --- Ollama: LLM + Embedding サーバー ---
+  ollama:
+    image: ollama/ollama:latest
+    container_name: bunko-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # GPU を使う場合はコメントを外す:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- モデルの自動ダウンロード ---
+  model-pull:
+    image: ollama/ollama:latest
+    container_name: bunko-model-pull
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "📥 Pulling LLM model (qwen2.5:7b)..."
+        ollama pull qwen2.5:7b
+        echo "📥 Pulling embedding model (bge-m3)..."
+        ollama pull bge-m3
+        echo "✅ All models ready!"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+
+  # --- RAG アプリケーション ---
+  rag-app:
+    build: .
+    container_name: bunko-rag-app
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LLM_MODEL=qwen2.5:7b
+      - EMBED_MODEL=bge-m3
+    volumes:
+      - ./texts:/app/texts
+      - ./src:/app/src
+    stdin_open: true
+    tty: true
+
+volumes:
+  ollama_data:

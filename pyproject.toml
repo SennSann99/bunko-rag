@@ -1,0 +1,10 @@
+[project]
+name = "bunko-rag"
+version = "0.1.0"
+description = "青空文庫テキストを使ったローカルRAGシステム"
+requires-python = ">=3.13"
+dependencies = [
+    "numpy>=2.4.3",
+    "requests>=2.32.5",
+    "scikit-learn>=1.8.0",
+]
